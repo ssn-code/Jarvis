@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.config.settings import settings
 from backend.utils.logger import logger
 from backend.database.manager import db
-from backend.api.routers import system, chat, memory, mcp, settings as settings_router
+from backend.api.routers import system, chat, memory, mcp, settings as settings_router, llm
 
 
 @asynccontextmanager
@@ -41,6 +41,7 @@ def create_app() -> FastAPI:
     # Register Routers
     app.include_router(system.router)
     app.include_router(chat.router)
+    app.include_router(llm.router)
     app.include_router(memory.router)
     app.include_router(mcp.router)
     app.include_router(settings_router.router)

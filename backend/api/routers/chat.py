@@ -1,12 +1,23 @@
 import json
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, AsyncIterator, Dict, List, Optional
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from backend.database.manager import db, utc_iso_now
 from backend.core.models import MessageRole
+from backend.llm.manager import llm_manager
+from backend.config.settings import settings
+from backend.utils.logger import logger
 
 router = APIRouter(prefix="/api", tags=["Chat & Conversations"])
+
+SYSTEM_INSTRUCTION = (
+    "You are JARVIS, a modular personal AI assistant designed with a clean, conversational interface. "
+    "Be calm, intelligent, professional, natural, and slightly witty. "
+    "Keep answers concise for simple requests, and detailed when necessary. "
+    "Avoid unnecessary cliches like 'Greetings, master' or 'I am JARVIS, your advanced artificial intelligence'."
+)
 
 
 class CreateConversationRequest(BaseModel):
@@ -17,6 +28,12 @@ class SendMessageRequest(BaseModel):
     role: MessageRole = MessageRole.USER
     content: str
     metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ChatStreamRequest(BaseModel):
+    conversation_id: str
+    content: str
+    provider: Optional[str] = None
 
 
 @router.get("/conversations")
@@ -136,3 +153,67 @@ async def add_message(conversation_id: str, req: SendMessageRequest):
         "created_at": now,
         "metadata": req.metadata,
     }
+
+
+@router.post("/chat/stream")
+async def stream_chat(req: ChatStreamRequest):
+    """Stream assistant response tokens in real-time via Server-Sent Events (SSE)."""
+    conv = await db.fetchone(
+        "SELECT * FROM conversations WHERE id = ?",
+        (req.conversation_id,)
+    )
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # 1. Persist user message
+    now = utc_iso_now()
+    await db.execute(
+        "INSERT INTO messages (conversation_id, role, content, metadata, created_at) VALUES (?, ?, ?, ?, ?)",
+        (req.conversation_id, MessageRole.USER.value, req.content, "{}", now),
+    )
+
+    # 2. Build context
+    history = await db.fetchall(
+        "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY id ASC",
+        (req.conversation_id,)
+    )
+    messages_payload: List[Dict[str, str]] = [
+        {"role": "system", "content": SYSTEM_INSTRUCTION}
+    ]
+    for h in history:
+        messages_payload.append({"role": h["role"], "content": h["content"]})
+
+    async def event_generator() -> AsyncIterator[str]:
+        full_response: List[str] = []
+        try:
+            async for token in llm_manager.stream(messages_payload, provider_name=req.provider):
+                full_response.append(token)
+                yield f"data: {json.dumps({'token': token})}\n\n"
+
+            # 3. Persist completed assistant message
+            complete_text = "".join(full_response)
+            end_time = utc_iso_now()
+            await db.execute(
+                "INSERT INTO messages (conversation_id, role, content, metadata, created_at) VALUES (?, ?, ?, ?, ?)",
+                (req.conversation_id, MessageRole.ASSISTANT.value, complete_text, "{}", end_time),
+            )
+            await db.execute(
+                "UPDATE conversations SET updated_at = ? WHERE id = ?",
+                (end_time, req.conversation_id),
+            )
+        except Exception as e:
+            logger.error(f"Chat stream error: {e}")
+            error_msg = str(e)
+            yield f"data: {json.dumps({'error': error_msg})}\n\n"
+        finally:
+            yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

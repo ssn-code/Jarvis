@@ -7,6 +7,29 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
+class NVIDIASettings(BaseSettings):
+    """Configuration for NVIDIA API (Primary Cloud AI Provider)."""
+    model_config = SettingsConfigDict(
+        env_prefix="NVIDIA_",
+        env_file=str(BASE_DIR / ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
+
+    api_key: SecretStr = Field(
+        default=SecretStr(""),
+        description="NVIDIA API Key. Never exposed to frontend or committed to Git."
+    )
+    base_url: str = Field(
+        default="https://integrate.api.nvidia.com/v1",
+        description="NVIDIA API Base URL."
+    )
+    model: str = Field(
+        default="meta/llama-3.3-70b-instruct",
+        description="Configured NVIDIA model name (e.g. meta/llama-3.3-70b-instruct, nvidia/nemotron-4-340b-instruct)."
+    )
+
+
 class OpenRouterSettings(BaseSettings):
     """Configuration for OpenRouter LLM APIs."""
     model_config = SettingsConfigDict(
@@ -43,16 +66,40 @@ class OpenRouterSettings(BaseSettings):
 
 
 class LocalLLMSettings(BaseSettings):
-    """Configuration for local LLM inference (e.g. Ollama, vLLM)."""
+    """Configuration for local LLM inference (e.g. Ollama, llama.cpp, vLLM)."""
     model_config = SettingsConfigDict(
-        env_prefix="LOCAL_LLM_",
+        env_prefix="LOCAL_",
         env_file=str(BASE_DIR / ".env"),
         env_file_encoding="utf-8",
         extra="ignore"
     )
 
     url: str = Field(default="http://localhost:11434/v1", description="Local LLM API base URL.")
-    model: str = Field(default="llama3.2:3b", description="Local model name or path.")
+    model: str = Field(default="llama3.2:3b", description="Configured local model name (e.g. llama3.2:3b, qwen2.5:7b).")
+    runtime: str = Field(default="Ollama", description="Local inference runtime identifier.")
+
+
+class LLMRoutingSettings(BaseSettings):
+    """Configuration for provider selection, execution modes, and fallback."""
+    model_config = SettingsConfigDict(
+        env_prefix="LLM_",
+        env_file=str(BASE_DIR / ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
+
+    provider: Literal["nvidia", "local", "openrouter", "gemini"] = Field(
+        default="nvidia",
+        description="Primary AI provider: nvidia (cloud primary) | local | openrouter | gemini."
+    )
+    execution_mode: Literal["cloud", "local", "hybrid"] = Field(
+        default="cloud",
+        description="Execution mode: cloud (NVIDIA) | local (Ollama) | hybrid."
+    )
+    enable_fallback: bool = Field(
+        default=True,
+        description="Automatically fallback to local model if primary cloud provider is unavailable."
+    )
 
 
 class DatabaseSettings(BaseSettings):
@@ -157,8 +204,13 @@ class Settings(BaseSettings):
     app_name: str = Field(default="JARVIS", description="System identifier name.")
     app_version: str = Field(default="0.1.0", description="System version.")
 
-    openrouter: OpenRouterSettings = Field(default_factory=OpenRouterSettings)
+    # Providers and Routing
+    nvidia: NVIDIASettings = Field(default_factory=NVIDIASettings)
     local_llm: LocalLLMSettings = Field(default_factory=LocalLLMSettings)
+    llm: LLMRoutingSettings = Field(default_factory=LLMRoutingSettings)
+    openrouter: OpenRouterSettings = Field(default_factory=OpenRouterSettings)
+
+    # Subsystems
     db: DatabaseSettings = Field(default_factory=DatabaseSettings)
     voice: VoiceSettings = Field(default_factory=VoiceSettings)
     security: SecuritySettings = Field(default_factory=SecuritySettings)

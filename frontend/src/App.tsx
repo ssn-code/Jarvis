@@ -19,7 +19,7 @@ import {
   fetchConversations,
   createConversation,
   fetchConversationDetails,
-  sendMessage,
+  streamChat,
   deleteConversation,
 } from './services/api';
 import './styles/theme.css';
@@ -126,25 +126,61 @@ export const App: React.FC = () => {
         convId = newConv.id;
       }
 
-      // Add user message
-      const userMsg = await sendMessage(convId, text, 'user');
-      setMessages((prev) => [...prev, userMsg]);
+      // 1. Append user message locally
+      const userMsg: ChatMessage = {
+        conversation_id: convId,
+        role: 'user',
+        content: text,
+        created_at: new Date().toISOString(),
+      };
 
-      // Assistant acknowledgment in J0 (LLM integration occurs in J2)
-      setTimeout(async () => {
-        try {
-          const assistantReply = await sendMessage(
-            convId!,
-            `JARVIS [Phase J0 Active]: Received "${text}". Core architecture, SQLite persistence, and API systems are operational. Ready for LLM brain integration in J2.`,
-            'assistant'
-          );
-          setMessages((prev) => [...prev, assistantReply]);
-        } catch (err) {
-          console.error(err);
-        } finally {
+      // 2. Append empty assistant placeholder
+      const assistantPlaceholder: ChatMessage = {
+        conversation_id: convId,
+        role: 'assistant',
+        content: '',
+        created_at: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, userMsg, assistantPlaceholder]);
+
+      // 3. Stream tokens progressively from NVIDIA / active provider
+      await streamChat(
+        convId,
+        text,
+        (token) => {
+          setMessages((prev) => {
+            const updated = [...prev];
+            const lastIdx = updated.length - 1;
+            if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                content: updated[lastIdx].content + token,
+              };
+            }
+            return updated;
+          });
+        },
+        () => {
+          setLoading(false);
+          loadConversations();
+        },
+        (errMsg) => {
+          setMessages((prev) => {
+            const updated = [...prev];
+            const lastIdx = updated.length - 1;
+            if (lastIdx >= 0 && updated[lastIdx].role === 'assistant') {
+              const current = updated[lastIdx].content;
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                content: current ? `${current}\n\n[Error: ${errMsg}]` : `⚠️ ${errMsg}`,
+              };
+            }
+            return updated;
+          });
           setLoading(false);
         }
-      }, 400);
+      );
     } catch (err) {
       console.error('Send message failed', err);
       setLoading(false);

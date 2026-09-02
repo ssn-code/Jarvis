@@ -57,3 +57,23 @@ export interface MemoryItem {
   created_at: string;
   updated_at: string;
 }
+
+export interface ProviderInfo {
+  name: string;
+  status: string;
+  model: string;
+  runtime?: string;
+  latency_ms?: number | null;
+  configured: boolean;
+  error?: string | null;
+}
+
+export interface LLMStatus {
+  active_provider: string;
+  execution_mode: 'cloud' | 'local' | 'hybrid';
+  fallback_enabled: boolean;
+  providers: {
+    nvidia: ProviderInfo;
+    local: ProviderInfo;
+  };
+}
