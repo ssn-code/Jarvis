@@ -18,7 +18,7 @@ class NVIDIAProvider(LLMProvider):
         base_url: Optional[str] = None,
         model: Optional[str] = None,
     ):
-        self._api_key = api_key or settings.nvidia.api_key.get_secret_value()
+        self._api_key = api_key if api_key is not None else settings.nvidia.api_key.get_secret_value()
         self.base_url = (base_url or settings.nvidia.base_url).rstrip("/")
         self.model = model or settings.nvidia.model
 

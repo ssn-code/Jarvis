@@ -25,7 +25,7 @@ class NVIDIASettings(BaseSettings):
         description="NVIDIA API Base URL."
     )
     model: str = Field(
-        default="meta/llama-3.3-70b-instruct",
+        default="meta/llama-3.2-11b-vision-instruct",
         description="Configured NVIDIA model name (e.g. meta/llama-3.3-70b-instruct, nvidia/nemotron-4-340b-instruct)."
     )
 
