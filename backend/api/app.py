@@ -61,6 +61,7 @@ def create_app() -> FastAPI:
             "app": settings.app_name,
             "version": settings.app_version,
             "env": settings.env,
+            "timestamp": db_now := __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
         }
 
     return app
