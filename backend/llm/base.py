@@ -26,7 +26,7 @@ class ProviderHealth(BaseModel):
 
 
 class LLMProvider(ABC):
-    """Abstract Base Class for all JARVIS LLM Providers (NVIDIA, Local, OpenRouter, Gemini)."""
+    """Abstract Base Class for all JARVIS LLM Providers (NVIDIA, Local)."""
 
     provider_name: str = "base"
 

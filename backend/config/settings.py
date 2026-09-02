@@ -30,39 +30,6 @@ class NVIDIASettings(BaseSettings):
     )
 
 
-class OpenRouterSettings(BaseSettings):
-    """Configuration for OpenRouter LLM APIs."""
-    model_config = SettingsConfigDict(
-        env_prefix="OPENROUTER_",
-        env_file=str(BASE_DIR / ".env"),
-        env_file_encoding="utf-8",
-        extra="ignore"
-    )
-
-    api_key: SecretStr = Field(
-        default=SecretStr(""),
-        description="OpenRouter API Key."
-    )
-    api_url: str = Field(
-        default="https://openrouter.ai/api/v1",
-        description="Base URL for OpenRouter API."
-    )
-    planner_model: str = Field(
-        default="deepseek/deepseek-chat",
-        description="Default model for agent planning and task decomposition."
-    )
-    chat_model: str = Field(
-        default="qwen/qwen-2.5-32b-instruct",
-        description="Default model for conversation."
-    )
-    coding_model: str = Field(
-        default="qwen/qwen-2.5-coder-32b-instruct",
-        description="Default model for writing and reviewing code."
-    )
-    vision_model: str = Field(
-        default="qwen/qwen-2-vl-72b-instruct",
-        description="Default model for vision and screenshot analysis."
-    )
 
 
 class LocalLLMSettings(BaseSettings):
@@ -88,9 +55,9 @@ class LLMRoutingSettings(BaseSettings):
         extra="ignore"
     )
 
-    provider: Literal["nvidia", "local", "openrouter", "gemini"] = Field(
+    provider: Literal["nvidia", "local"] = Field(
         default="nvidia",
-        description="Primary AI provider: nvidia (cloud primary) | local | openrouter | gemini."
+        description="Primary AI provider: nvidia (cloud primary) | local."
     )
     execution_mode: Literal["cloud", "local", "hybrid"] = Field(
         default="cloud",
@@ -208,7 +175,6 @@ class Settings(BaseSettings):
     nvidia: NVIDIASettings = Field(default_factory=NVIDIASettings)
     local_llm: LocalLLMSettings = Field(default_factory=LocalLLMSettings)
     llm: LLMRoutingSettings = Field(default_factory=LLMRoutingSettings)
-    openrouter: OpenRouterSettings = Field(default_factory=OpenRouterSettings)
 
     # Subsystems
     db: DatabaseSettings = Field(default_factory=DatabaseSettings)

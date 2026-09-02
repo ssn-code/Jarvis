@@ -138,7 +138,7 @@ JARVIS/
 
 ## 6. Safety & Security Model
 
-1. **Secret Masking**: Sensitive keys (such as `OPENROUTER_API_KEY`) are protected using `pydantic.SecretStr` and never returned in API responses.
+1. **Secret Masking**: Sensitive keys (such as `NVIDIA_API_KEY`) are protected using `pydantic.SecretStr` and never returned in API responses.
 2. **Permission Levels**: Tools are governed by five explicit tiers:
    - `READ_ONLY`
    - `AUTOMATIC`

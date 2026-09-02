@@ -114,7 +114,7 @@ npm.cmd run build
 
 - **[x] Phase J0** — Architecture & Setup
 - **[ ] Phase J1** — Gemini-Style Chat UI
-- **[ ] Phase J2** — LLM Integration (OpenRouter / NVIDIA / Local models)
+- **[ ] Phase J2** — NVIDIA LLM Integration (NVIDIA API / Local models)
 - **[ ] Phase J3** — Short & Long-Term Memory
 - **[ ] Phase J4** — Real-Time Voice Pipeline
 - **[ ] Phase J5** — MCP Client & Server Registry
